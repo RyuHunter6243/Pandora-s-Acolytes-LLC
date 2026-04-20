@@ -1,0 +1,33 @@
+[
+  {
+    "id": "acolyte-registry",
+    "name": "ACOLYTE REGISTRY",
+    "files": [
+      "reg-an-071.json",
+      "d-05-e77r.json"
+    ]
+  },
+  {
+    "id": "anomaly-db",
+    "name": "ANOMALY DATABASE",
+    "files": [
+      "scp-9098.json"
+    ]
+  },
+  {
+    "id": "personnel-db",
+    "name": "PERSONNEL DATABASE",
+    "files": [
+      "mantis-basalis.json",
+      "nex-veridis.json"
+    ]
+  },
+  {
+    "id": "misc",
+    "name": "MISC ACOLYTE FILES",
+    "files": [
+      "faction-handbook.json",
+      "clearance-system.json"
+    ]
+  }
+]

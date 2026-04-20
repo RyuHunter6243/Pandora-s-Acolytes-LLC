@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PANDORA'S ACOLYTES // SECURE TERMINAL</title>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:     #080808;
+      --bg2:    #0c0000;
+      --bg3:    #0f0000;
+      --bgdoc:  #0a0000;
+      --red:    #8b0000;
+      --redb:   #cc2222;
+      --redbr:  #ff4444;
+      --redd:   #3d0000;
+      --reddd:  #1e0000;
+      --brd:    #220000;
+      --brdmd:  #3d0000;
+      --txt:    #d4c4b8;
+      --txtm:   #8a7070;
+      --txts:   #442020;
+      --sw:     272px;
+      --bh:     44px;
+      --ui:     'Rajdhani', sans-serif;
+      --mono:   'Courier New', Courier, monospace;
+    }
+
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    html, body { height:100%; background:var(--bg); color:var(--txt); font-family:var(--mono); overflow:hidden; }
+
+    body::before {
+      content:''; position:fixed; inset:0;
+      background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.08) 2px,rgba(0,0,0,0.08) 4px);
+      pointer-events:none; z-index:999;
+    }
+
+    #boot {
+      position:fixed; inset:0; background:#000;
+      z-index:800; padding:26px 34px;
+      font-family:var(--mono); font-size:13px;
+      line-height:1.65; color:#991111;
+      overflow:hidden; display:block;
+    }
+    #boot.fadeout { animation:bfade 0.7s forwards; }
+    @keyframes bfade { to { opacity:0; pointer-events:none; } }
+
+    .bl { display:block; opacity:0; }
+    .bl.on { opacity:1; }
+    .bl.sp { height:9px; opacity:1; }
+    .bl.dim { color:#3d0000; }
+    .bl.brg { color:#ff3333; }
+    .bl.grn { color:#335533; }
+    .bl.wrn { color:#ff4444; padding-left:10px; border-left:2px solid #661111; }
+    .bcur { display:inline-block; width:8px; height:13px; background:#991111; vertical-align:bottom; animation:bcblink 0.7s step-end infinite; }
+    @keyframes bcblink { 0%,100%{opacity:1;} 50%{opacity:0;} }
+
+    #auth {
+      position:fixed; inset:0;
+      background:#000;
+      z-index:700;
+      display:none;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:0;
+      opacity:0;
+    }
+    #auth.show { display:flex; animation:authfade 0.9s ease forwards; }
+    #auth.fadeout { animation:bfade 0.8s forwards; opacity:1; }
+    @keyframes authfade { from{opacity:0;transform:translateY(10px);} to{opacity:1;transform:translateY(0);} }
+
+    .auth-logo {
+      font-family:var(--ui);
+      font-size:13px;
+      font-weight:700;
+      letter-spacing:6px;
+      color:#440000;
+      margin-bottom:40px;
+      text-align:center;
+      line-height:2;
+    }
+    .auth-logo strong { display:block; font-size:18px; color:#881111; letter-spacing:8px; }
+
+    .fp-wrap {
+      position:relative;
+      width:140px;
+      height:140px;
+      cursor:pointer;
+      user-select:none;
+      -webkit-user-select:none;
+      touch-action:none;
+    }
+
+    .fp-ring-svg {
+      position:absolute; inset:0;
+      transform:rotate(-90deg);
+    }
+    .fp-bg-ring {
+      stroke:#1a0000;
+      stroke-width:3;
+      fill:none;
+    }
+    .fp-progress {
+      stroke:#cc2222;
+      stroke-width:3;
+      fill:none;
+      stroke-linecap:round;
+      stroke-dasharray:408;
+      stroke-dashoffset:408;
+      transition:none;
+    }
+    .fp-progress.go {
+      animation:fpfill 2.4s linear forwards;
+    }
+    @keyframes fpfill { to { stroke-dashoffset:0; } }
+
+    .fp-inner {
+      position:absolute;
+      inset:14px;
+      border-radius:50%;
+      background:#0d0000;
+      border:1px solid #2a0000;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      transition:background 0.2s;
+    }
+    .fp-wrap:hover .fp-inner { background:#140000; }
+    .fp-wrap.active .fp-inner { background:#1e0000; border-color:#440000; }
+
+    .fp-svg { color:#660000; transition:color 0.2s; }
+    .fp-wrap.active .fp-svg { color:#cc3333; }
+    .fp-wrap.done .fp-svg { color:#ff4444; }
+
+    .fp-status {
+      margin-top:28px;
+      font-family:var(--ui);
+      font-size:13px;
+      font-weight:700;
+      letter-spacing:5px;
+      color:#440000;
+      text-align:center;
+      height:20px;
+      transition:color 0.2s;
+    }
+    .fp-status.scanning { color:#993333; }
+    .fp-status.verified { color:#ff4444; animation:vstatus 0.4s ease; }
+    @keyframes vstatus { from{opacity:0;transform:scale(0.95);} to{opacity:1;transform:scale(1);} }
+
+    .fp-hint {
+      margin-top:10px;
+      font-size:10px;
+      letter-spacing:3px;
+      color:#2a0000;
+      text-align:center;
+    }
+
+    #app {
+      display:none;
+      flex-direction:column;
+      height:100vh;
+      opacity:0;
+      transform:translateY(8px);
+    }
+    #app.show {
+      display:flex;
+      animation:appin 0.6s ease forwards;
+    }
+    @keyframes appin { to { opacity:1; transform:translateY(0); } }
+
+    .topbar {
+      height:var(--bh);
+      background:var(--bg2);
+      border-bottom:1px solid var(--brdmd);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:0 14px;
+      flex-shrink:0;
+      z-index:200;
+    }
+    .tl { display:flex; align-items:center; gap:10px; }
+    .mbtn {
+      display:none;
+      background:none;
+      border:1px solid var(--redd);
+      color:var(--redb);
+      font-family:var(--ui);
+      font-size:14px;
+      font-weight:600;
+      padding:2px 9px;
+      cursor:pointer;
+      letter-spacing:2px;
+    }
+    .mbtn:hover { border-color:var(--redb); }
+    .ttitle { font-family:var(--ui); font-size:15px; font-weight:700; letter-spacing:4px; color:var(--redb); }
+    .tsub { font-family:var(--mono); font-size:10px; letter-spacing:2px; color:var(--txts); margin-top:1px; }
+    .tr { display:flex; align-items:center; gap:16px; font-family:var(--mono); font-size:11px; letter-spacing:2px; color:var(--txts); }
+    .sdot { display:inline-block; width:6px; height:6px; border-radius:50%; margin-right:4px; }
+    .dg { background:#335533; animation:sb 3s step-end infinite; }
+    .dr { background:var(--redb); animation:sb 2s step-end infinite; }
+    @keyframes sb { 0%,100%{opacity:1;} 50%{opacity:0.2;} }
+
+    .layout { display:flex; height:calc(100vh - var(--bh)); }
+
+    .sidebar {
+      width:var(--sw); min-width:var(--sw);
+      background:var(--bg2);
+      border-right:1px solid var(--brdmd);
+      overflow-y:auto; overflow-x:hidden;
+      flex-shrink:0;
+      display:flex; flex-direction:column;
+      transition:transform 0.22s ease;
+    }
+    .sidebar::-webkit-scrollbar { width:3px; }
+    .sidebar::-webkit-scrollbar-track { background:var(--bg2); }
+    .sidebar::-webkit-scrollbar-thumb { background:var(--redd); }
+
+    .shd { padding:13px 12px 9px; border-bottom:1px solid var(--brd); }
+    .shd .sht { font-family:var(--ui); font-size:12px; font-weight:700; letter-spacing:3px; color:var(--redb); }
+    .shd .shs { font-family:var(--mono); font-size:10px; letter-spacing:2px; color:var(--txts); margin-top:2px; }
+
+    #tree { flex:1; padding:4px 0; }
+
+    .folder-item { }
+    .flabel {
+      display:flex; align-items:center; gap:6px;
+      padding:7px 12px;
+      cursor:pointer;
+      font-family:var(--ui); font-size:12px; font-weight:700; letter-spacing:2px;
+      color:var(--redb);
+      border-left:2px solid transparent;
+      transition:background 0.1s, border-color 0.1s;
+      user-select:none;
+    }
+    .flabel:hover { background:rgba(139,0,0,0.1); border-left-color:var(--red); }
+    .farrow { font-size:9px; transition:transform 0.14s; flex-shrink:0; color:var(--txts); }
+    .folder-item.open .farrow { transform:rotate(90deg); }
+    .fchildren { display:none; }
+    .folder-item.open .fchildren { display:block; }
+
+    .fitem {
+      display:flex; align-items:center; gap:6px;
+      padding:5px 12px 5px 32px;
+      cursor:pointer;
+      font-family:var(--mono); font-size:11px;
+      color:var(--txtm);
+      border-left:2px solid transparent;
+      transition:background 0.1s, border-color 0.1s, color 0.1s;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .fitem:hover { background:rgba(139,0,0,0.08); color:#c08080; }
+    .fitem.active { background:rgba(139,0,0,0.18); border-left-color:var(--redb); color:#ff8888; }
+    .fitem.hostile { color:#bb2222; }
+    .fitem.hostile:hover { color:#ff3333; }
+    .fitem.hostile.active { border-left-color:#ff3333; }
+    .fico { color:var(--txts); flex-shrink:0; }
+    .hbadge { margin-left:auto; font-size:9px; color:#ff3333; background:rgba(180,0,0,0.15); padding:1px 3px; flex-shrink:0; }
+
+    .sfooter { padding:9px 12px; border-top:1px solid var(--brd); font-family:var(--mono); font-size:10px; letter-spacing:2px; color:var(--txts); line-height:1.8; margin-top:auto; }
+
+    .viewer {
+      flex:1; overflow-y:auto; overflow-x:hidden;
+      background:var(--bgdoc);
+      padding:24px 32px 60px;
+    }
+    .viewer::-webkit-scrollbar { width:3px; }
+    .viewer::-webkit-scrollbar-track { background:var(--bgdoc); }
+    .viewer::-webkit-scrollbar-thumb { background:var(--redd); }
+    .viewer.hv { background:#0a0004; }
+
+    .welcome { color:var(--txts); font-family:var(--mono); font-size:12px; line-height:2; padding:48px 14px; }
+    .welcome .wb { font-family:var(--ui); font-size:24px; font-weight:700; letter-spacing:4px; color:var(--redb); display:block; margin-bottom:12px; }
+
+    .doc { animation:din 0.15s ease; }
+    @keyframes din { from{opacity:0;transform:translateY(4px);} to{opacity:1;transform:none;} }
+
+    .dcb {
+      padding:5px 12px;
+      font-family:var(--ui); font-size:11px; font-weight:700; letter-spacing:4px;
+      margin-bottom:14px; border-left:4px solid;
+    }
+    .cLEVEL-TAU   { border-color:#407090; background:rgba(40,70,100,0.1); color:#90b8d0; }
+    .cLEVEL-ETA   { border-color:#804800; background:rgba(120,60,0,0.1);  color:#d09050; }
+    .cLEVEL-RHO   { border-color:#7a2810; background:rgba(120,40,20,0.1); color:#cc6644; }
+    .cLEVEL-PHI   { border-color:#304080; background:rgba(40,60,160,0.1); color:#7090d0; }
+    .cLEVEL-CHI   { border-color:#503080; background:rgba(80,40,140,0.1); color:#9870c4; }
+    .cLEVEL-PSI   { border-color:#880000; background:rgba(100,0,0,0.12);  color:#ff4444; }
+
+    .dmeta {
+      display:flex; flex-wrap:wrap;
+      font-family:var(--mono); font-size:11px; color:var(--txts);
+      border:1px solid var(--brdmd); margin-bottom:16px;
+    }
+    .dmc { padding:5px 12px; border-right:1px solid var(--brd); }
+    .dmc:last-child { border-right:none; }
+    .dmc span { color:#c08080; }
+
+    .dtitle { font-family:var(--ui); font-size:22px; font-weight:700; letter-spacing:3px; color:#ff4444; margin-bottom:4px; }
+    .ddiv { border:none; border-top:1px solid var(--brdmd); margin:12px 0; }
+
+    .dcontent { color:var(--txt); font-family:var(--mono); font-size:13px; line-height:1.9; }
+    .dcontent p { margin-bottom:11px; }
+    .dcontent p:last-child { margin-bottom:0; }
+
+    .sec {
+      font-family:var(--ui); font-size:13px; font-weight:700;
+      letter-spacing:3px; color:var(--redbr);
+      margin:16px 0 6px; display:block;
+      border-left:3px solid var(--red); padding-left:8px;
+    }
+
+    .rd { background:var(--redb); color:var(--redb); user-select:none; padding:0 2px; cursor:default; }
+
+    .logb {
+      background:#0f0000;
+      border:1px solid #2a0000;
+      border-left:3px solid #660000;
+      padding:10px 13px; margin:10px 0;
+      font-family:var(--mono); font-size:12px;
+      color:#c4a890; line-height:1.85;
+    }
+    .logb .loglb {
+      font-family:var(--ui); font-size:11px; font-weight:700;
+      letter-spacing:3px; color:#884444;
+      display:block; margin-bottom:5px;
+    }
+
+    .warnb {
+      border:1px solid #cc2222;
+      background:#140000;
+      color:#ff6655;
+      padding:9px 12px; margin:10px 0;
+      font-family:var(--ui); font-size:13px; font-weight:600;
+      letter-spacing:1px; line-height:1.7;
+    }
+
+    .noteb {
+      border-left:2px solid #3d0000;
+      padding:7px 12px; margin:10px 0;
+      font-family:var(--mono); font-size:12px;
+      color:#664444; line-height:1.75; font-style:italic;
+    }
+    .noteb span { color:#886666; font-style:normal; }
+
+    .sig { margin-top:20px; padding-top:10px; border-top:1px solid var(--brdmd); font-family:var(--mono); font-size:12px; color:var(--txts); line-height:1.8; }
+    .signame { color:#c08080; font-family:var(--ui); font-size:14px; font-weight:700; letter-spacing:2px; }
+
+    .dtab { margin:7px 0 11px; width:100%; border-collapse:collapse; }
+    .dtab tr td { padding:5px 8px; font-family:var(--mono); font-size:12px; border-bottom:1px solid var(--brd); vertical-align:top; }
+    .dtab tr td:first-child { color:#664444; width:160px; font-family:var(--ui); font-size:11px; font-weight:600; letter-spacing:2px; }
+    .dtab tr td:last-child { color:var(--txt); }
+
+    .pac { border:1px solid var(--brdmd); margin-bottom:16px; }
+    .pach {
+      background:var(--bg2); border-bottom:1px solid var(--brdmd);
+      padding:7px 12px; display:flex; align-items:center; justify-content:space-between;
+      font-family:var(--ui);
+    }
+    .pach .preg { font-size:10px; letter-spacing:3px; color:var(--txts); }
+    .pach .preg strong { color:#ff4444; font-size:17px; font-weight:700; }
+    .pach .plvl { font-size:15px; font-weight:700; letter-spacing:2px; color:#ff4444; text-align:right; }
+    .pach .plvl small { display:block; font-size:9px; letter-spacing:3px; color:var(--txts); font-weight:400; margin-top:1px; }
+
+    .pacl {
+      background:var(--red); padding:8px 12px;
+      display:flex; align-items:center; gap:12px;
+      border-bottom:1px solid var(--brdmd); flex-wrap:wrap;
+    }
+    .pacl .pclb { font-family:var(--ui); font-size:9px; font-weight:600; letter-spacing:3px; color:rgba(255,180,180,0.55); }
+    .pacl .pcn  { font-family:var(--ui); font-size:19px; font-weight:700; letter-spacing:2px; color:#fff; }
+    .pacl .pcr  { display:flex; flex-direction:column; gap:4px; margin-left:auto; }
+    .pacl .pcs  { font-family:var(--mono); font-size:11px; color:rgba(255,200,200,0.7); }
+    .pacl .pcs strong { color:#ffe0e0; }
+
+    .pacb { display:flex; border-bottom:1px solid var(--brdmd); flex-wrap:wrap; }
+    .paccol { flex:1; min-width:150px; padding:10px 12px; border-right:1px solid var(--brd); font-family:var(--mono); font-size:12px; color:var(--txt); line-height:1.75; }
+    .paccol:last-child { border-right:none; }
+    .pcl { font-family:var(--ui); font-size:9px; font-weight:700; letter-spacing:3px; color:var(--txts); margin-bottom:5px; display:block; }
+
+    .pacimg { width:148px; min-width:148px; background:#0d0000; display:flex; flex-direction:column; align-items:center; justify-content:center; border-right:1px solid var(--brd); padding:8px; gap:5px; }
+    .pcimglb { font-family:var(--ui); font-size:9px; letter-spacing:2px; color:var(--txts); text-align:center; }
+    .pcph { width:104px; height:104px; border:1px solid var(--brdmd); display:flex; align-items:center; justify-content:center; color:var(--txts); font-family:var(--mono); font-size:9px; letter-spacing:2px; text-align:center; background:rgba(100,0,0,0.04); }
+
+    .pacab { display:flex; flex-wrap:wrap; }
+    .abcol { flex:1; min-width:150px; padding:10px 12px; border-right:1px solid var(--brd); font-family:var(--mono); font-size:12px; color:var(--txt); line-height:1.8; }
+    .abcol:last-child { border-right:none; }
+    .ablb { font-family:var(--ui); font-size:9px; font-weight:700; letter-spacing:3px; color:var(--txts); margin-bottom:5px; display:block; }
+
+    .clcard { border:1px solid var(--brdmd); margin-bottom:14px; overflow:hidden; }
+    .clct { background:var(--bg2); padding:8px 12px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--brdmd); }
+    .cllvl { font-family:var(--ui); font-size:19px; font-weight:700; letter-spacing:3px; }
+    .clsub { font-family:var(--mono); font-size:10px; letter-spacing:2px; color:var(--txts); }
+    .clcb { padding:11px 12px; font-family:var(--mono); font-size:12px; line-height:1.8; }
+    .clcb p { color:var(--txt); }
+
+    .qna { margin-bottom:14px; }
+    .qna .q { font-family:var(--ui); font-size:13px; font-weight:700; letter-spacing:1px; color:var(--redb); margin-bottom:4px; }
+    .qna .a { font-family:var(--mono); font-size:12px; color:var(--txt); line-height:1.8; }
+
+    .cbarid {
+      display:flex; align-items:center; gap:3px;
+      padding:5px 0; margin:4px 0 8px;
+    }
+    .cbarsep { width:2px; height:20px; background:#555; margin:0 4px; }
+    .cbar { width:28px; height:20px; border:1px solid #333; }
+
+    @media(max-width:768px) {
+      .sidebar { position:fixed; top:var(--bh); left:0; bottom:0; z-index:500; transform:translateX(-100%); }
+      .sidebar.open { transform:translateX(0); }
+      .mbtn { display:block; }
+      .viewer { padding:14px 12px 50px; }
+      .tr { display:none; }
+      .dmeta { flex-direction:column; }
+      .dmc { border-right:none; border-bottom:1px solid var(--brd); }
+      .pacb { flex-direction:column; }
+      .pacab { flex-direction:column; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="boot"></div>
+
+<div id="auth">
+  <div class="auth-logo">
+    <strong>PANDORA'S ACOLYTES LLC</strong>
+    VERMILION NETWORK SECURE TERMINAL
+  </div>
+
+  <div class="fp-wrap" id="fpWrap">
+    <svg class="fp-ring-svg" viewBox="0 0 140 140">
+      <circle class="fp-bg-ring" cx="70" cy="70" r="65"/>
+      <circle class="fp-progress" id="fpRing" cx="70" cy="70" r="65"/>
+    </svg>
+    <div class="fp-inner">
+      <svg class="fp-svg" id="fpIcon" viewBox="0 0 80 80" width="64" height="64" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+        <ellipse cx="40" cy="44" rx="5" ry="7"/>
+        <path d="M32 44 Q32 30 40 30 Q48 30 48 44"/>
+        <path d="M26 46 Q24 24 40 22 Q56 24 54 46"/>
+        <path d="M20 48 Q16 18 40 14 Q64 18 60 48"/>
+        <path d="M14 50 Q8 12 40 7 Q72 12 66 50"/>
+        <path d="M32 52 Q40 64 48 52"/>
+        <path d="M26 54 Q40 74 54 54"/>
+        <path d="M20 56 Q40 82 60 56"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="fp-status" id="fpStatus">HOLD TO AUTHENTICATE</div>
+  <div class="fp-hint" id="fpHint">PLACE FINGER ON SCANNER</div>
+</div>
+
+<div id="app">
+  <div class="topbar">
+    <div class="tl">
+      <button class="mbtn" id="mbtn">MENU</button>
+      <div>
+        <div class="ttitle">PANDORA'S ACOLYTES LLC</div>
+        <div class="tsub">INTERNAL SECURE TERMINAL // VERMILION NETWORK</div>
+      </div>
+    </div>
+    <div class="tr">
+      <span><span class="sdot dg"></span>TERMINAL: ACTIVE</span>
+      <span><span class="sdot dr"></span>CLEARANCE: PSI REQUIRED</span>
+      <span>VN NODE 7 // ENCRYPTED</span>
+    </div>
+  </div>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="shd">
+        <div class="sht">SECURE DATABASE</div>
+        <div class="shs">PROPERTY OF PANDORA'S ACOLYTES LLC</div>
+      </div>
+      <div id="tree"></div>
+      <div class="sfooter">
+        &gt; <span id="ecount">...</span> DOCUMENTS LOADED<br>
+        &gt; TERMINAL SECURED
+      </div>
+    </aside>
+
+    <main class="viewer" id="viewer">
+      <div class="welcome">
+        <span class="wb">SELECT A DOCUMENT</span>
+        <p>&gt; Navigate the folder tree to access classified documents.</p>
+        <p>&gt; All access is monitored by the Relay Network and logged by Vermilion Network.</p>
+        <p>&gt; Unauthorized disclosure of classified information is a capital offense.</p>
+        <br>
+        <p>&gt; PROPERTY OF PANDORA'S ACOLYTES LLC // LEVEL-PSI "APEIROS" CLEARANCE REQUIRED</p>
+        <br>
+        <p style="color:#664444;border-left:2px solid #3d0000;padding-left:10px;font-style:italic;">&gt; NOTE: This archive is accessed through tablet devices via quantum entanglement with the entities that serve as the database. Data is not stored on conventional servers. It exists within them.</p>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+  const bootEl  = document.getElementById('boot');
+  const authEl  = document.getElementById('auth');
+  const appEl   = document.getElementById('app');
+  const viewer  = document.getElementById('viewer');
+  const tree    = document.getElementById('tree');
+  const sbar    = document.getElementById('sidebar');
+  let entries   = [];
+
+  const BOOT = [
+    {t:'l', c:'brg', tx:'PANDORA\'S ACOLYTES LLC', d:140},
+    {t:'l', c:'brg', tx:'INTERNAL SECURE TERMINAL v3.1.4', d:100},
+    {t:'l', c:'dim', tx:'EREBUS RESEARCH SYSTEMS / RESTRICTED USE ONLY', d:130},
+    {t:'s', d:180},
+    {t:'l', c:'',    tx:'BIOS POST v2.04 INITIALIZING...', d:260},
+    {t:'p', d:820},
+    {t:'l', c:'grn', tx:'MEMORY CHECK: 131072K EXTENDED OK', d:180},
+    {t:'l', c:'',    tx:'STORAGE [A] ENCRYPTED PARTITION / MOUNTING', d:150},
+    {t:'l', c:'grn', tx:'PA-CRYPT v4.2: KEY VERIFIED / OK', d:190},
+    {t:'s', d:150},
+    {t:'l', c:'',    tx:'SECURITY PROTOCOLS INITIALIZING...', d:220},
+    {t:'l', c:'grn', tx:'CLEARANCE GATE: ACTIVE', d:110},
+    {t:'l', c:'grn', tx:'INFORMATION BUFFERS: ACTIVE', d:110},
+    {t:'l', c:'grn', tx:'FRAGMENTATION PROTOCOL: ENGAGED', d:150},
+    {t:'s', d:150},
+    {t:'l', c:'',    tx:'CONNECTING TO VERMILION NETWORK NODE 7...', d:210},
+    {t:'l', c:'grn', tx:'LINK ESTABLISHED', d:170},
+    {t:'l', c:'grn', tx:'AES-PA ENCRYPTION ACTIVE / KEY EXCHANGE COMPLETE', d:170},
+    {t:'s', d:150},
+    {t:'l', c:'',    tx:'LOADING PA-OS v3.1...', d:170},
+    {t:'p', d:900},
+    {t:'l', c:'grn', tx:'KERNEL LOADED / SPAWNING SECURE SHELL', d:170},
+    {t:'s', d:170},
+    {t:'l', c:'wrn', tx:'WARNING: ALL ACCESS IS MONITORED BY THE RELAY NETWORK AND LOGGED BY VERMILION NETWORK', d:300},
+    {t:'l', c:'wrn', tx:'WARNING: UNAUTHORIZED ACCESS IS PUNISHABLE BY [REDACTED]', d:200},
+    {t:'l', c:'wrn', tx:'NOTICE: RELAY PROXY IS ACTIVE, ALL SOFTWARE IS PROTECTED', d:220},
+    {t:'s', d:180},
+    {t:'l', c:'brg', tx:'BIOMETRIC AUTHENTICATION REQUIRED', d:220},
+    {t:'l', c:'brg', tx:'PLEASE PLACE FINGER ON SCANNER TO CONTINUE', d:180},
+    {t:'cur', d:700},
+  ];
+
+  function runBoot() {
+    let acc = 0;
+    BOOT.forEach(item => {
+      acc += item.d;
+      setTimeout(() => {
+        if (item.t === 's') {
+          const el = document.createElement('div');
+          el.className = 'bl sp';
+          bootEl.appendChild(el);
+        } else if (item.t === 'l') {
+          const el = document.createElement('div');
+          el.className = 'bl ' + item.c;
+          el.textContent = item.tx;
+          bootEl.appendChild(el);
+          requestAnimationFrame(() => el.classList.add('on'));
+          el.scrollIntoView({block:'nearest'});
+        } else if (item.t === 'p') {
+          const el = document.createElement('div');
+          el.className = 'bl on';
+          el.textContent = '[                              ] 0%';
+          bootEl.appendChild(el);
+          let pct = 0;
+          const iv = setInterval(() => {
+            pct = Math.min(pct + 2, 100);
+            const f = Math.round((pct / 100) * 30);
+            el.textContent = '[' + '#'.repeat(f) + ' '.repeat(30 - f) + '] ' + pct + '%';
+            if (pct >= 100) clearInterval(iv);
+          }, 8);
+        } else if (item.t === 'cur') {
+          const el = document.createElement('div');
+          el.className = 'bl on brg';
+          const cur = document.createElement('span');
+          cur.className = 'bcur';
+          el.appendChild(cur);
+          bootEl.appendChild(el);
+          setTimeout(() => {
+            bootEl.classList.add('fadeout');
+            setTimeout(() => {
+              bootEl.style.display = 'none';
+              authEl.classList.add('show');
+            }, 700);
+          }, 600);
+        }
+      }, acc);
+    });
+  }
+
+  const fpWrap   = document.getElementById('fpWrap');
+  const fpRing   = document.getElementById('fpRing');
+  const fpStatus = document.getElementById('fpStatus');
+  const fpHint   = document.getElementById('fpHint');
+  let   fpTimer  = null;
+  let   fpDone   = false;
+
+  function startScan() {
+    if (fpDone) return;
+    fpWrap.classList.add('active');
+    fpStatus.textContent = 'SCANNING...';
+    fpStatus.className = 'fp-status scanning';
+    fpHint.textContent = 'HOLD STILL';
+    fpRing.classList.add('go');
+  }
+
+  function cancelScan() {
+    if (fpDone) return;
+    fpWrap.classList.remove('active');
+    fpStatus.textContent = 'HOLD TO AUTHENTICATE';
+    fpStatus.className = 'fp-status';
+    fpHint.textContent = 'PLACE FINGER ON SCANNER';
+    fpRing.classList.remove('go');
+    fpRing.style.strokeDashoffset = '408';
+    void fpRing.offsetWidth;
+  }
+
+  function completeScan() {
+    fpDone = true;
+    fpWrap.classList.remove('active');
+    fpWrap.classList.add('done');
+    fpStatus.textContent = 'IDENTITY VERIFIED';
+    fpStatus.className = 'fp-status verified';
+    fpHint.textContent = 'ACCESS GRANTED';
+    setTimeout(() => {
+      authEl.classList.add('fadeout');
+      setTimeout(() => {
+        authEl.style.display = 'none';
+        appEl.classList.add('show');
+        loadArchive();
+      }, 800);
+    }, 700);
+  }
+
+  fpRing.addEventListener('animationend', completeScan);
+
+  fpWrap.addEventListener('mousedown', startScan);
+  fpWrap.addEventListener('touchstart', e => { e.preventDefault(); startScan(); }, {passive:false});
+
+  document.addEventListener('mouseup', cancelScan);
+  document.addEventListener('touchend', cancelScan);
+
+  async function loadArchive() {
+    try {
+      const raw  = await fetch('./databasefiles/index.json').then(r => r.json());
+      const all  = raw.flatMap(f => f.files);
+      entries    = await Promise.all(all.map(f => fetch('./databasefiles/' + f).then(r => r.json())));
+      document.getElementById('ecount').textContent = entries.length;
+      buildTree(raw);
+      const hash = window.location.hash.replace('#', '');
+      if (hash) {
+        const el = document.querySelector('.fitem[data-id="' + hash + '"]');
+        if (el) el.click();
+      }
+    } catch(e) {
+      viewer.innerHTML = '<div class="welcome"><span class="wb" style="font-size:17px;color:#ff3333;">DATABASE LOAD FAILURE</span><p style="color:#ff3333;margin-top:7px;">&gt; COULD NOT REACH DATABASE FILES.</p><p style="margin-top:5px;">&gt; ENSURE /databasefiles/index.json IS PRESENT.</p></div>';
+    }
+  }
+
+  function buildTree(folders) {
+    tree.innerHTML = '';
+    folders.forEach(folder => {
+      const fi  = document.createElement('div');
+      fi.className = 'folder-item';
+      const lbl = document.createElement('div');
+      lbl.className = 'flabel';
+      const arr = document.createElement('span');
+      arr.className = 'farrow';
+      arr.textContent = '\u25B6';
+      const nm  = document.createElement('span');
+      nm.textContent = folder.name;
+      lbl.appendChild(arr);
+      lbl.appendChild(nm);
+      lbl.addEventListener('click', () => fi.classList.toggle('open'));
+      const ch  = document.createElement('div');
+      ch.className = 'fchildren';
+      folder.files.forEach(fname => {
+        const eid   = fname.replace('.json', '');
+        const entry = entries.find(e => e.id === eid);
+        if (!entry) return;
+        const it    = document.createElement('div');
+        it.className = 'fitem' + (entry.hostile ? ' hostile' : '');
+        it.dataset.id = entry.id;
+        const ico   = document.createElement('span');
+        ico.className = 'fico';
+        ico.textContent = '>';
+        const fn    = document.createElement('span');
+        fn.textContent = entry.file;
+        fn.style.overflow = 'hidden';
+        fn.style.textOverflow = 'ellipsis';
+        fn.style.minWidth = '0';
+        it.appendChild(ico);
+        it.appendChild(fn);
+        if (entry.hostile) {
+          const badge = document.createElement('span');
+          badge.className = 'hbadge';
+          badge.textContent = '[!]';
+          it.appendChild(badge);
+        }
+        it.addEventListener('click', () => {
+          document.querySelectorAll('.fitem').forEach(x => x.classList.remove('active'));
+          it.classList.add('active');
+          loadDoc(entry.id);
+          if (window.innerWidth <= 768) sbar.classList.remove('open');
+        });
+        ch.appendChild(it);
+      });
+      fi.appendChild(lbl);
+      fi.appendChild(ch);
+      tree.appendChild(fi);
+    });
+  }
+
+  function loadDoc(id) {
+    const entry = entries.find(e => e.id === id);
+    if (!entry) return;
+    entry.hostile ? viewer.classList.add('hv') : viewer.classList.remove('hv');
+    const ck = entry.classification.replace(/\s+/g, '-');
+    viewer.innerHTML =
+      '<div class="doc">' +
+        '<div class="dcb c' + ck + '">CLASSIFICATION: ' + entry.classification + ' &nbsp; STATUS: ' + entry.status + '</div>' +
+        '<div class="dmeta">' +
+          '<div class="dmc">DOC ID: <span>' + entry.docId + '</span></div>' +
+          '<div class="dmc">DATE: <span>' + entry.date + '</span></div>' +
+        '</div>' +
+        '<div class="dtitle">' + entry.file.replace(/\.[^.]+$/, '').replace(/_/g, ' ') + '</div>' +
+        '<hr class="ddiv">' +
+        '<div class="dcontent">' + entry.content + '</div>' +
+      '</div>';
+    viewer.scrollTop = 0;
+    window.location.hash = id;
+  }
+
+  document.getElementById('mbtn').addEventListener('click', () => sbar.classList.toggle('open'));
+  viewer.addEventListener('click', () => { if (window.innerWidth <= 768) sbar.classList.remove('open'); });
+
+  document.fonts.ready.then(runBoot);
+</script>
+</body>
+</html>
